@@ -37,7 +37,7 @@ def obtener_datos_clima(id_localidad):
         return None
 
 
-def obtener_tabla_datos_clima(parsed_xml):
+def obtener_tabla_datos_clima(parsed_xml, emoji_option):
     data = []
     days = parsed_xml.getElementsByTagName("day")
     for day in days:
@@ -77,24 +77,46 @@ def obtener_tabla_datos_clima(parsed_xml):
     df["Ráfagas de viento (km/h)"] = df["Ráfagas de viento (km/h)"].astype(float)
     df["Lluvia (mm)"] = df["Lluvia (mm)"].astype(float)
 
-    def asignar_emoji_viento(valor):
-        if valor < 30:
-            return "\U0001F7E2"
-        elif 30 <= valor < 50:
-            return "\U0001F7E1"
-        else:
-            return "\U0001F534"
-
-    def asignar_emoji_lluvia(valor):
-        if valor < 1:
-            return "\U0001F7E2"
-        else:
-            return "\U0001F534"
-
-    df["RV"] = df["Ráfagas de viento (km/h)"].apply(asignar_emoji_viento)
-    df["LL"] = df["Lluvia (mm)"].apply(asignar_emoji_lluvia)
+    if emoji_option == "RTK":
+        df["RV"] = df["Ráfagas de viento (km/h)"].apply(asignar_emoji_viento)
+        df["LL"] = df["Lluvia (mm)"].apply(asignar_emoji_lluvia)
+    elif emoji_option == "DJI":
+        df["RV"] = df["Ráfagas de viento (km/h)"].apply(asignar_emoji_viento_dji)
+        df["LL"] = df["Lluvia (mm)"].apply(asignar_emoji_lluvia_dji)
 
     return df
+
+
+def asignar_emoji_viento(valor):
+    if valor < 30:
+        return "\U0001F7E2"  # VERDE
+    elif 30 <= valor < 50:
+        return "\U0001F7E1"  # AMARRILLO
+    else:
+        return "\U0001F534"  # ROJO
+
+
+def asignar_emoji_lluvia(valor):
+    if valor < 1:
+        return "\U0001F7E2"  # VERDE
+    else:
+        return "\U0001F534"  # ROJO
+
+
+def asignar_emoji_viento_dji(valor):
+    if valor < 10:
+        return "\U0001F7E2"  # VERDE
+    elif 10 <= valor < 30:
+        return "\U0001F7E1"  # AMARRILLO
+    else:
+        return "\U0001F534"  # ROJO
+
+
+def asignar_emoji_lluvia_dji(valor):
+    if valor < 0.5:
+        return "\U0001F7E2"  # VERDE
+    else:
+        return "\U0001F534"  # ROJO
 
 
 @app.callback(
@@ -102,9 +124,10 @@ def obtener_tabla_datos_clima(parsed_xml):
     [
         Input("input-localidad", "value"),
         Input("input-id", "value"),
+        Input("radio-conditions", "value"),
     ],
 )
-def update_table(nombre_localidad, id_localidad):
+def update_table(nombre_localidad, id_localidad, radio_value):
     ctx = dash.callback_context
     if not ctx.triggered:
         return dash.no_update
@@ -126,7 +149,10 @@ def update_table(nombre_localidad, id_localidad):
 
             if datos_clima:
                 parsed_xml = minidom.parseString(datos_clima)
-                df = obtener_tabla_datos_clima(parsed_xml)
+                df = obtener_tabla_datos_clima(
+                    parsed_xml, radio_value
+                )  # Pass radio_value here
+
                 page_size = 8
                 table = dash_table.DataTable(
                     data=df.to_dict("records"),
@@ -146,8 +172,8 @@ def update_table(nombre_localidad, id_localidad):
 app.layout = html.Div(
     [
         html.H1(
-            "Analizador Clima/Drone",
-            style={"marginBottom": "20px", "fontFamily": "Roboto"},
+            "Meteorólogo de Vuelo",
+            style={"marginBottom": "20px", "fontFamily": "Roboto", "fontSize": "25px"},
         ),
         dcc.Input(
             id="input-localidad",
@@ -163,6 +189,20 @@ app.layout = html.Div(
         ),
         html.Div(
             [
+                html.Label(
+                    "Seleccione el modelo de Drone:",
+                    style={"fontFamily": "Roboto"},
+                ),
+                dcc.RadioItems(
+                    id="radio-conditions",
+                    options=[
+                        {"label": "Matrice 300 RTK", "value": "RTK"},
+                        {"label": "DJI M", "value": "DJI"},
+                    ],
+                    value="RTK",
+                    labelStyle={"display": "block"},
+                    style={"marginBottom": "10px", "fontFamily": "Roboto"},
+                ),
                 html.Div(id="table-container"),
             ],
             style={"marginTop": "20px"},
