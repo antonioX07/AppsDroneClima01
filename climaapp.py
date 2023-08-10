@@ -10,7 +10,7 @@ app = dash.Dash(
         "https://fonts.googleapis.com/css2?family=Roboto&display=swap"
     ],
 )
-
+server = app.server
 
 def buscar_localidades(nombre_localidad):
     url = f"https://www.meteored.com.ar/peticionBuscador.php?lang=ar&texto={nombre_localidad}"
@@ -191,4 +191,4 @@ def update_dropdown_options(nombre_localidad):
 
 
 if __name__ == "__main__":
-    app.run()
+    app.run_server(debug=False)
